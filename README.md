@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bridge Home × สายใย
 
-## Getting Started
+ระบบดูแลพ่อแม่ 2 ฝั่งในกลุ่ม LINE ของครอบครัว สำหรับ **SPU AI Hackathon รอบชิงชนะเลิศ**
+เปลี่ยนครอบครัวให้เป็นทีมดูแลพ่อแม่ ที่มีแผนจากพยาบาล และ "น้องใย" AI โทรคุยกับพ่อแม่ทุกเช้า
 
-First, run the development server:
+**เดโม:** https://bridgehome-web.vercel.app
+
+- **ฝั่งลูกหลาน (Bridge Home):** สถานะเขียว/เหลือง/แดง, ตารางเวร, แผนดูแลจากใบจำหน่าย, สัญญาณชีพ, ยาและนัดหมอ, ปฏิทินย้อนหลัง, สรุปเข้า LINE, คุยกับพยาบาล, เช็กใจผู้ดูแล
+- **ฝั่งคุณยาย (สายใย):** ปุ่มใหญ่ 3 ปุ่ม, น้องใยโทรเข้า → รับสายแล้วคุยด้วยเสียง, คัดกรอง 2Q → 9Q, ขอความช่วยเหลือ, ความจำที่ลบได้และตั้ง "ไม่บอกลูก" ได้
+- **ฝั่งพยาบาลคลินิก:** เคสเรียงแดง → เหลือง → เขียว, ค้นหา/กรอง, อนุมัติแผน, นัดเยี่ยมบ้าน, คลังเนื้อหาที่รับรอง, รายได้คลินิก
+
+## หน้าเดโม
+
+เปิด `/` บนคอม จะเห็นมือถือ 3 เครื่อง (ลูก / คุณยาย / พยาบาล) ที่ข้อมูลเชื่อมกันสด
+
+1. แตะไอคอนแอปบนหน้าโฮมของมือถือเพื่อเปิด (มี splash 6 วินาที)
+2. แผงด้านขวามีสถานการณ์ 21 แบบใน 5 หมวด เช่น น้องใยโทรหาคุณยาย, ไม่รับสายแล้วแจ้งต่อเป็นขั้น, 9Q แดง, ไข้ + ซึม
+3. แตะแถบล่างของจอมือถือเพื่อกลับหน้าโฮม
+
+เปิดบนมือถือจริงจะเป็นเต็มจอไม่มีกรอบ ปุ่มลอยมุมขวาบนคือแผงเดโม
+หน้าเลือกมุมมองแบบเดิมอยู่ที่ `/start`
+
+## รันบนเครื่อง
+
+ต้องมี Node.js 20 ขึ้นไป
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # แล้วใส่คีย์ของตัวเอง
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ไม่ใส่คีย์ก็รันได้: น้องใยจะใช้ประโยคสำรอง และใช้เสียงอ่านของเบราว์เซอร์แทน
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ตัวแปรสภาพแวดล้อม
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+ทุกค่าอยู่ฝั่งเซิร์ฟเวอร์เท่านั้น (เรียกผ่าน `app/api/*`) คีย์ไม่หลุดไปที่เบราว์เซอร์
 
-## Learn More
+| ตัวแปร | ใช้ทำอะไร |
+|---|---|
+| `FISH_API_KEY`, `FISH_REFERENCE_ID`, `FISH_MODEL` | เสียงน้องใยจาก Fish Audio (`/api/tts`) |
+| `TYPHOON_API_KEY` | สมองน้องใยหลัก โมเดลภาษาไทยของ SCB 10X (`/api/chat`) |
+| `GEMINI_API_KEY`, `GROQ_API_KEY` | สมองสำรอง ระบบลองตามลำดับ Typhoon → Gemini → Groq |
 
-To learn more about Next.js, take a look at the following resources:
+สร้างไฟล์เสียงล่วงหน้า (ไม่เสียเครดิตซ้ำตอนพรีเซนต์):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+node --env-file=.env.local scripts/gen-audio.mjs
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## โครงสร้าง
 
-## Deploy on Vercel
+| ที่อยู่ | หน้าที่ |
+|---|---|
+| `app/page.tsx` | เวทีเดโม มือถือ 3 เครื่อง + แผงสถานการณ์ |
+| `app/care/*` | แอปลูกหลาน |
+| `app/parent/*` | แอปคุณยาย (`call` = หน้าจอคุยสาย, `talk` = แชต, `assess` = 9Q) |
+| `app/clinic` | แอปพยาบาลคลินิก |
+| `app/api/chat` | น้องใยคุยแบบธรรมชาติด้วย LLM |
+| `app/api/tts` | พร็อกซีเสียง Fish Audio (จำกัด 30 ครั้ง/นาที) |
+| `components/device/*` | กรอบ iPhone, หน้าโฮม, Dynamic Island, สายเรียกเข้า, สถานการณ์ |
+| `components/voice-chat.tsx` | บทสนทนาน้องใย (เช็กอิน → ถามว่าจะคุยต่อไหม → คุยเล่น) |
+| `lib/nongyai.ts` | บทของน้องใย + กฎคำอันตราย |
+| `lib/screening.ts` | 9Q และเกณฑ์สัญญาณชีพ |
+| `lib/store.ts` | สถานะเดโม (localStorage) ที่ทุกหน้าจอใช้ร่วมกัน |
+| `IMAGE_PROMPTS.md` | prompt สร้างโลโก้ รูปประกอบ และมาสคอต |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ความปลอดภัยของการคัดกรอง
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **ระดับแดงตัดสินด้วยกฎตายตัวเสมอ** เช่น เจ็บหน้าอก, หายใจไม่อิ่ม, 9Q ข้อ 9 มากกว่า 0, คะแนน ≥ 19, ไข้ ≥ 38.5 AI ช่วยยกระดับความห่วงได้ แต่ลดระดับไม่ได้
+- **2Q/9Q** ใช้ถ้อยคำตามแบบของกรมสุขภาพจิต เป็นการคัดกรองและส่งต่อ ไม่ใช่การวินิจฉัย และต้องให้พยาบาลจิตเวชตรวจก่อนใช้จริง
+- **เกณฑ์สัญญาณชีพในเดโม** เป็นค่าตัวอย่าง ต้องให้ทีมพยาบาลรับรองก่อนใช้จริง
+- **น้องใยไม่ถามเรื่องเงินหรือรหัส** เนื้อหาที่คุยเล่นไม่ถูกส่งให้ลูก ลูกเห็นแค่ว่าคุยกันกี่ช่วง
+
+## ข้อจำกัดของเดโม
+
+- ข้อมูลเก็บใน localStorage ของเบราว์เซอร์ 3 เครื่องเชื่อมกันได้เพราะเปิดในเบราว์เซอร์เดียวกัน ยังไม่มีฐานข้อมูล
+- ยังจำลองอยู่: OCR ใบจำหน่าย, โค้ชท่าผ่านกล้อง, LINE, ชำระเงิน, พยาบาลจริง (ปุ่มที่มีป้าย "เดโม")
+- ตัวเลขธุรกิจ (ราคา ส่วนแบ่งคลินิก) เป็นสมมติฐานจากรายงาน v4
+
+## Deploy
+
+ใช้ Vercel: ตั้ง env ตามตารางด้านบนใน Project Settings → Environment Variables แล้ว deploy
+
+```bash
+npx vercel deploy --prod
+```
