@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Island, StatusBar, type IslandMsg } from "./phone";
 import { SplashArt } from "@/components/splash";
+import { LineApp, LineIcon } from "./line-app";
 import { useDemo, useToday, worstLevel, type DemoEvent } from "@/lib/store";
 import { SHIFTS } from "@/lib/data";
 
@@ -81,6 +82,8 @@ export function Device({
   const [hint, setHint] = useState<string | null>(null);
   const [src, setSrc] = useState<string>(ROLE[role].route);
   const [darkTop, setDarkTop] = useState(false);
+  const [lineOpen, setLineOpen] = useState(false);
+  const [lineSeen, setLineSeen] = useState<string | null>(null);
   const screenRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const lastId = useRef<string | null>(null);
@@ -152,7 +155,14 @@ export function Device({
     return () => clearInterval(id);
   }, [mounted]);
 
-  const goHome = () => setMode("home");
+  const goHome = () => {
+    setLineOpen(false);
+    setMode("home");
+  };
+  const openLine = () => {
+    setLineSeen(s.events[0]?.id ?? null);
+    setLineOpen(true);
+  };
 
   const tapOther = (name: string) => {
     setHint(`${name} เป็นภาพจำลอง ในเดโมนี้เปิดได้เฉพาะแอป ${cfg.app}`);
@@ -187,7 +197,11 @@ export function Device({
     </button>
   );
 
-  const lightBar = mode !== "app" || ringing || darkTop;
+  const lightBar = (mode !== "app" || ringing || darkTop) && !(lineOpen && !ringing);
+  // ข้อความใหม่ในกลุ่ม LINE ตั้งแต่เปิดครั้งล่าสุด (ไม่นับที่ตัวเองทำ)
+  const own = role === "parent" ? "parent" : "caregiver";
+  const seenAt = lineSeen ? s.events.findIndex((e) => e.id === lineSeen) : 2;
+  const lineUnread = Math.min(9, s.events.slice(0, seenAt < 0 ? s.events.length : seenAt).filter((e) => e.by !== own).length);
 
   return (
     <div ref={screenRef} className={`relative h-full w-full overflow-hidden ${bleed ? "" : "rounded-[52px]"}`} style={{ background: WALL[role] }}>
@@ -251,7 +265,19 @@ export function Device({
 
         <div className={`relative mt-7 grid px-6 ${big ? "grid-cols-3 gap-y-6" : "grid-cols-4 gap-y-5"}`}>
           {appIcon}
-          {other("แชตครอบครัว", "linear-gradient(#5bd17a,#2fb454)", MessageCircle)}
+          {role === "clinic" ? (
+            other("ข้อความ", "linear-gradient(#5bd17a,#2fb454)", MessageCircle)
+          ) : (
+            <button onClick={openLine} className="relative flex flex-col items-center gap-1.5 active:scale-95" aria-label={`เปิด LINE${lineUnread ? ` มีข้อความใหม่ ${lineUnread}` : ""}`}>
+              <span className="shadow-[0_6px_16px_-6px_rgba(0,0,0,.5)]" style={{ borderRadius: big ? 20 : 15 }}>
+                <LineIcon size={big ? 78 : 62} radius={big ? 20 : 15} />
+              </span>
+              {lineUnread > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#ff3b30] px-1.5 text-[13px] font-semibold text-white">{lineUnread}</span>
+              )}
+              <span className={`${big ? "text-[15px]" : "text-[12px]"} font-medium text-white drop-shadow`}>LINE</span>
+            </button>
+          )}
           {other("ปฏิทิน", "#fff", CalendarDays, "#e5483a")}
           {!big && other("รูปภาพ", "#fff", Images, "#f2a93b")}
           {other("กล้อง", "linear-gradient(#9aa0ab,#5c616c)", Camera)}
@@ -304,6 +330,14 @@ export function Device({
         </div>
       )}
 
+      {/* ---------- LINE (กลุ่มครอบครัว + บอท Bridge Home) ---------- */}
+      <div
+        className={`absolute inset-0 z-[25] overflow-hidden transition-[transform,opacity] duration-300 ${lineOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-6 opacity-0"}`}
+        aria-hidden={!lineOpen}
+      >
+        {lineOpen && <LineApp me={role === "parent" ? "yai" : "pen"} topInset={bleed ? 0 : 50} onClose={() => { setLineSeen(s.events[0]?.id ?? null); setLineOpen(false); }} />}
+      </div>
+
       {/* ---------- สายเรียกเข้าจากน้องใย ---------- */}
       {ringing && (
         <div className="absolute inset-0 z-30 flex flex-col items-center bg-[linear-gradient(#2a3c8e,#121a40)] px-8 pb-16 pt-28 text-center text-white">
@@ -341,7 +375,7 @@ export function Device({
           aria-label="กลับหน้าโฮม"
           className="absolute bottom-0 left-1/2 z-40 flex h-6 w-44 -translate-x-1/2 items-center justify-center"
         >
-          <span className={`h-[5px] w-[136px] rounded-full ${mode === "app" && !ringing && !darkTop ? "bg-ink/85" : "bg-white/90"}`} />
+          <span className={`h-[5px] w-[136px] rounded-full ${((mode === "app" && !darkTop) || lineOpen) && !ringing ? "bg-ink/85" : "bg-white/90"}`} />
         </button>
       )}
       {bleed && mode === "app" && (
